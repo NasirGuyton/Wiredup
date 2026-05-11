@@ -1,122 +1,114 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
+import WaveSurfer from "wavesurfer.js";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function formatFileSize(bytes) {
+  if (!bytes) return "Unknown size";
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
 }
 
-export default App
+export default function App() {
+  const waveformRef = useRef(null);
+  const wavesurferRef = useRef(null);
+
+  const [file, setFile] = useState(null);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  function handleFileChange(event) {
+    const selectedFile = event.target.files?.[0];
+
+    if (!selectedFile) return;
+
+    const url = URL.createObjectURL(selectedFile);
+    setFile(selectedFile);
+    setAudioUrl(url);
+    setIsPlaying(false);
+  }
+
+  useEffect(() => {
+    if (!audioUrl || !waveformRef.current) return;
+
+    if (wavesurferRef.current) {
+      wavesurferRef.current.destroy();
+    }
+
+    const wavesurfer = WaveSurfer.create({
+      container: waveformRef.current,
+      waveColor: "#8b8bff",
+      progressColor: "#4f46e5",
+      cursorColor: "#111827",
+      height: 120,
+      barWidth: 2,
+      barGap: 1,
+      responsive: true
+    });
+
+    wavesurfer.load(audioUrl);
+
+    wavesurfer.on("finish", () => {
+      setIsPlaying(false);
+    });
+
+    wavesurferRef.current = wavesurfer;
+
+    return () => {
+      wavesurfer.destroy();
+    };
+  }, [audioUrl]);
+
+  function togglePlay() {
+    if (!wavesurferRef.current) return;
+
+    wavesurferRef.current.playPause();
+    setIsPlaying((current) => !current);
+  }
+
+  return (
+    <main className="app">
+      <section className="hero">
+        <p className="eyebrow">Wiredup Project</p>
+        <h1>WAV Vault</h1>
+        <p className="subtitle">
+          Upload a WAV or audio file, preview it, and inspect the waveform.
+          This project uses live documentation and browser verification through MCP tools.
+        </p>
+      </section>
+
+      <section className="panel">
+        <label className="uploadBox">
+          <span>Choose WAV / audio file</span>
+          <input
+            type="file"
+            accept="audio/*,.wav"
+            onChange={handleFileChange}
+            aria-label="Choose audio file"
+          />
+        </label>
+
+        {file ? (
+          <div className="trackCard">
+            <div>
+              <h2>{file.name}</h2>
+              <p>{file.type || "Audio file"} · {formatFileSize(file.size)}</p>
+            </div>
+
+            <div ref={waveformRef} className="waveform" data-testid="waveform" />
+
+            <button className="playButton" onClick={togglePlay}>
+              {isPlaying ? "Pause" : "Play"}
+            </button>
+          </div>
+        ) : (
+          <div className="emptyState">
+            <h2>No file loaded yet</h2>
+            <p>Add a WAV file to generate a waveform preview.</p>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+export { formatFileSize };
